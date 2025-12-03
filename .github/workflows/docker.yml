@@ -1,30 +1,44 @@
-name: UPB Devops 2025 CICD
+name: UPB Devops 2025 CICD - Apache
 
 on:
- push:
-   branches: [master]
- workflow_dispatch:
+  push:
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
- build:
-   runs-on: ubuntu-latest
-   steps:
-     - name: Checkout source
-       uses: actions/checkout@v4
-     - name: Login to docker hub
-       run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-     - name: Build docker image
-       run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nodejs-app .
-     - name: Publish image to docker hub
-       run: docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
- deploy:
-   needs: build
-   runs-on: [self-hosted]
-   steps:
-      - name: Pull image from docker hub
-        run: docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
-      - name: Delete old container
-        run: docker rm -f nodejs-app-container
-      - name: Run docker container
-        run: docker run -d -p 3000:3000 --name nodejs-app-container ${{ secrets.DOCKER_USERNAME }}/nodejs-app
 
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image (Apache)
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/apache-web .
+
+      - name: Tag image
+        run: docker tag ${{ secrets.DOCKER_USERNAME }}/apache-web ${{ secrets.DOCKER_USERNAME }}/apache-web:latest
+
+      - name: Push image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/apache-web:latest
+
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+
+    steps:
+      - name: Login to Docker Hub (server)
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Pull latest image
+        run: docker pull ${{ secrets.DOCKER_USERNAME }}/apache-web:latest
+
+      - name: Stop old container (if exists)
+        run: docker rm -f apache-web-container || true
+
+      - name: Run new Apache container
+        run: docker run -d -p 80:80 --name apache-web-container ${{ secrets.DOCKER_USERNAME }}/apache-web:latest
