@@ -1,0 +1,64 @@
+services:
+  api:
+    image: lushocallapa/product-api:latest
+    container_name: product-api
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      popdb:
+        condition: service_completed_successfully
+    environment:
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: productsdb
+    networks:
+      - upb
+
+  db:
+    image: postgres:15
+    container_name: product-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: productsdb
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - upb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  popdb:
+    build: .
+    container_name: popdb
+    command: ["node", "popdb.js"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: productsdb
+    networks:
+      - upb
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - upb
+
+volumes:
+  dbdata:
+
+networks:
+  upb:
